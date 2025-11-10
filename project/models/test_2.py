@@ -2,8 +2,12 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import mean_absolute_percentage_error
 import xgboost as xgb
 import matplotlib.pyplot as plt
+import wandb 
+
+wandb.init(project="influenza_formal_test", name="xgboost_t4")
 
 def calculate_mape(y_true, y_pred, epsilon=1e-10):
     y_true, y_pred = np.array(y_true), np.array(y_pred)
@@ -22,10 +26,11 @@ def softmax(x):
     return exp_x / exp_x.sum()
 
 # 使用贪婪策略来选择特征组合
-def greedy_feature_selection(data, target , features, max_features = 5): # ->>>5 : 28.89 , 4: 29.63,3 :39.18
+def greedy_feature_selection(data, target, features, max_features=5):
     selected_features = []
     score_history = []
     current_best_score = float("inf")
+    
     for _ in range(max_features):
         best_feature = None
         for feature in features:
@@ -36,16 +41,19 @@ def greedy_feature_selection(data, target , features, max_features = 5): # ->>>5
             model = xgb.XGBRegressor(objective='reg:squarederror', random_state=42)
             model.fit(X_trial, target)
             y_pred = model.predict(X_trial)
-            trial_score = mean_squared_error(target, y_pred)
+            trial_score = calculate_mape(target, y_pred)
+            
+            # 如果 MAPE 改善，則更新最佳特徵
             if trial_score < current_best_score:
                 current_best_score = trial_score
                 best_feature = feature
         if best_feature:
             selected_features.append(best_feature)
             score_history.append(current_best_score)
-            print(f"Selected feature: {best_feature}, Current Best MSE: {current_best_score:.4f}")
+            print(f"Selected feature: {best_feature}, Current Best MAPE: {current_best_score:.4f}")
 
-    return selected_features , score_history
+    return selected_features, score_history
+
 
 # 加入 Softmax 策略进行加权平均
 def softmax_ensemble(predictions):
@@ -56,7 +64,7 @@ def softmax_ensemble(predictions):
 # 在代码中应用这两种策略
 if __name__ == "__main__":
     # 读取数据
-    data = pd.read_csv("merged_file.csv")
+    data = pd.read_csv("../data/merged_file.csv")
     data = create_lag_features(data, lag=3).dropna()
     data['Year'] = data['YearWeek'].astype(str).str[:4].astype(int)
     data['Week'] = data['YearWeek'].astype(str).str[4:].astype(int)
@@ -86,7 +94,7 @@ if __name__ == "__main__":
         scoring='neg_mean_squared_error'
     )
     grid_search.fit(X_train_selected, y_train)
-
+    print("Best parameters:", grid_search.best_params_)
     # 使用Softmax策略进行集成
     best_model = grid_search.best_estimator_
     y_pred_single = best_model.predict(X_test_selected)
@@ -96,6 +104,7 @@ if __name__ == "__main__":
     mse = mean_squared_error(y_test, y_pred_ensemble)
     mae = mean_absolute_error(y_test, y_pred_ensemble)
     mape = calculate_mape(y_test, y_pred_ensemble)
+    wandb.log({"Final MAPE": mape, "Final MSE": mse, "Final MAE": mae})
     
     print(f"均方误差 (MSE): {mse:.2f}")
     print(f"平均绝对误差 (MAE): {mae:.2f}")
@@ -107,7 +116,7 @@ if __name__ == "__main__":
     plt.show()
     plt.plot(range(1, len(score_history) + 1), score_history, marker='o', linestyle='-')
     plt.xlabel("Number of Features Selected")
-    plt.ylabel("Mean Squared Error (MSE)")
-    plt.title("Loss Change with Feature Selection (Greedy Strategy)")
+    plt.ylabel("Mean Abolute Percentage Error (MSE)")
+    plt.title("Loss Change with Feature Selection (XGBoost)")
     plt.savefig("lose.png", dpi = 300)
     plt.show()

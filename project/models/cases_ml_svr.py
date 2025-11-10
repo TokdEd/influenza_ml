@@ -12,21 +12,18 @@ def create_lag_features(data, lag):
         data[f'lag_{i}'] = data['ConfirmedCases'].shift(i)
     return data
 
-# 自定义MAPE评分器
 def mape(y_true, y_pred):
     non_zero_mask = y_true != 0
     return np.mean(np.abs((y_true[non_zero_mask] - y_pred[non_zero_mask]) / y_true[non_zero_mask])) * 100
 
 # 初始化 wandb 项目
-wandb.init(project="influenza_formal_test", name="SVR Model with Grid Search and Metrics Logging")
+wandb.init(project="influenza_formal_test", name="SVR Model - Best vs Worst Parameters")
 
-# 询问是否需要记录到 wandb
+# 询问是否记录到 wandb
 record_wandb = input("是否记录 wandb 数据？(y/n): ").strip().lower() == 'y'
 
 # 读取病例数据
-data = pd.read_csv("merged_file.csv")
-
-# 创建滞后特征
+data = pd.read_csv("project/data/merged_file.csv")
 data = create_lag_features(data, lag=3)
 data.dropna(inplace=True)
 
@@ -37,12 +34,11 @@ data['Week'] = data['YearWeek'].astype(str).str[4:].astype(int)
 X = data[['Year', 'Week', 'ExcludedCases', 'PendingCases', 'AverageTemperature', 'lag_1', 'lag_2', 'lag_3']]
 y = data['ConfirmedCases']
 
-# 按时间顺序分割数据，80%用于训练，20%用于测试
+# 按时间顺序分割数据
 split_index = int(len(X) * 0.8)
 X_train, X_test = X[:split_index], X[split_index:]
 y_train, y_test = y[:split_index], y[split_index:]
 
-# 定义参数网格
 param_grid = {
     'C': [0.01, 0.1, 1, 10, 100, 1000],
     'gamma': ['scale', 0.0001, 0.001, 0.01, 0.1, 1, 10],
@@ -50,7 +46,6 @@ param_grid = {
     'kernel': ['rbf']
 }
 
-# 定义评分器
 scoring = {
     'MAPE': make_scorer(mape, greater_is_better=False),
     'MSE': make_scorer(mean_squared_error, greater_is_better=False),
@@ -61,63 +56,66 @@ scoring = {
 grid_search = GridSearchCV(SVR(), param_grid, cv=5, scoring=scoring, refit='MAPE', return_train_score=True, verbose=2)
 grid_search.fit(X_train, y_train)
 
-# 输出最佳参数和得分
-best_params = grid_search.best_params_
-best_mape = -grid_search.best_score_
-print("Best parameters:", best_params)
-print("Best MAPE score from Grid Search:", best_mape)
+# 找出最差的参数组合
+cv_results = pd.DataFrame(grid_search.cv_results_)
+worst_idx = cv_results['mean_test_MAPE'].argmin()  # 因为是负数，所以用argmin
+worst_params = grid_search.cv_results_['params'][worst_idx]
+worst_mape = -cv_results['mean_test_MAPE'][worst_idx]
+"""
+Worst parameters: {'C': 1000, 'epsilon': 5, 'gamma': 0.1, 'kernel': 'rbf'}
+"""
+print("Worst parameters:", worst_params)
+print("Worst MAPE score:", worst_mape)
 
-# 记录每次搜索的结果（根据选择记录到 wandb）
-if record_wandb:
-    for i, params in enumerate(grid_search.cv_results_['params']):
-        mape_score = -grid_search.cv_results_['mean_test_MAPE'][i]
-        mse_score = -grid_search.cv_results_['mean_test_MSE'][i]
-        mae_score = -grid_search.cv_results_['mean_test_MAE'][i]
-        wandb.log({
-            "MAPE": mape_score,
-            "MSE": mse_score,
-            "MAE": mae_score,
-            "Parameters": params
-        })
+# 使用最差参数创建模型
+worst_model = SVR(**worst_params)
+worst_model.fit(X_train, y_train)
+y_pred_worst = worst_model.predict(X_test)
 
-# 使用最佳参数的模型进行预测
-best_model = grid_search.best_estimator_
-y_pred = best_model.predict(X_test)
+# 计算最差模型的指标
+worst_final_mape = mape(y_test, y_pred_worst)
+worst_final_mse = mean_squared_error(y_test, y_pred_worst)
+worst_final_mae = mean_absolute_error(y_test, y_pred_worst)
 
-# 计算最终的 MAPE、MSE 和 MAE
-final_mape = mape(y_test, y_pred)
-final_mse = mean_squared_error(y_test, y_pred)
-final_mae = mean_absolute_error(y_test, y_pred)
+print(f"Worst Model Final MAPE: {worst_final_mape:.2f}%")
+print(f"Worst Model Final MSE: {worst_final_mse:.2f}")
+print(f"Worst Model Final MAE: {worst_final_mae:.2f}")
 
-# 记录最终结果（根据选择记录到 wandb）
-if record_wandb:
-    wandb.log({
-        "Best Parameters": best_params,
-        "Final MAPE": final_mape,
-        "Final MSE": final_mse,
-        "Final MAE": final_mae
-    })
+# 创建对比可视化
+plt.figure(figsize=(15, 8))
 
-# 打印最终MAPE值
-print(f"Final MAPE: {final_mape:.2f}%")
-print(f"Final MSE: {final_mse:.2f}")
-print(f"Final MAE: {final_mae:.2f}")
-
-# 可视化实际值与预测值的对比
-plt.figure(figsize=(10, 6))
+# 绘制最差模型的预测结果
+plt.subplot(1, 2, 1)
 plt.plot(y_test.reset_index(drop=True).values, label="Actual", linestyle='--', marker='o')
-plt.plot(pd.Series(y_pred).reset_index(drop=True).values, label="Predicted", linestyle='--', marker='x')
+plt.plot(pd.Series(y_pred_worst).reset_index(drop=True).values, label="Predicted (Worst)", linestyle='--', marker='x')
 plt.legend()
 plt.xlabel('Sample Index')
 plt.ylabel('Confirmed Cases')
-plt.title('Actual vs Predicted Confirmed Cases with Grid Search')
+plt.title('Actual vs Predicted (Worst Parameters)')
+plt.savefig("plot_svm_worst.png")
+
+# 绘制最佳模型的预测结果（用于对比）
+y_pred_best = grid_search.best_estimator_.predict(X_test)
+plt.subplot(1, 2, 2)
+plt.plot(y_test.reset_index(drop=True).values, label="Actual", linestyle='--', marker='o')
+plt.plot(pd.Series(y_pred_best).reset_index(drop=True).values, label="Predicted (Best)", linestyle='--', marker='x')
+plt.legend()
+plt.xlabel('Sample Index')
+plt.ylabel('Confirmed Cases')
+plt.title('Actual vs Predicted (Best Parameters)')
+plt.savefig("plot_svm_best.png")
+plt.tight_layout()
+plt.savefig("plot_svr_worst_vs_best.png")
 plt.show()
 
-# 保存图像并上传至 wandb（根据选择记录到 wandb）
+# 记录到 wandb（如果选择记录）
 if record_wandb:
-    plt.savefig('plot_svr_grid_search.png')
-    wandb.log({"chart": wandb.Image('plot_svr_grid_search.png')})
-
-# 完成 wandb 实验
-if record_wandb:
+    plt.savefig('plot_svr_worst_vs_best.png')
+    wandb.log({
+        "Worst Parameters": worst_params,
+        "Worst MAPE": worst_final_mape,
+        "Worst MSE": worst_final_mse,
+        "Worst MAE": worst_final_mae,
+        "Comparison Chart": wandb.Image('plot_svr_worst_vs_best.png')
+    })
     wandb.finish()

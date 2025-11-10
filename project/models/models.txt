@@ -1,0 +1,15 @@
+SVM{
+Best parameters: {'C': 10, 'epsilon': 0.001, 'gamma': 0.001, 'kernel': 'rbf'}
+Final selected features: ['lag_1', 'ExcludedCases', 'lag_2', 'Year', 'lag_3', 'AverageTemperature']
+Final MAPE: 26.47%
+}
+xgb{
+Final selected features: ['lag_1', 'AverageTemperature', 'Week', 'lag_3', 'ExcludedCases']
+Best parameters: {'learning_rate': 0.05, 'max_depth': 3, 'n_estimators': 200}
+最终模型 MAPE: 28.89%
+}
+
+
+
+SVM Final selected features: ['lag_1', 'ExcludedCases', 'lag_2', 'Year', 'lag_3', 'AverageTemperature']
+XGB Final selected features: ['lag_1', 'AverageTemperature', 'Week', 'lag_3', 'ExcludedCases']
