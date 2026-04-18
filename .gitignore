@@ -1,5 +1,5 @@
 .venv
-wandb
+wandb/
 stage-2/data/output_analysis
 sth/
 essay_experiment_data

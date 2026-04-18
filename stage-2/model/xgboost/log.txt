@@ -1,0 +1,96 @@
+Dataset Shape: (17344, 13)
+
+First 5 rows of data:
+  COUNTRY_AREA_TERRITORY ISO2 WHOREGION  ISO_YEAR  ISO_WEEK    ISOYW  INF_A  \
+0              Australia   AU       WPR      1996        52  1996-52      1   
+1              Australia   AU       WPR      1997         1  1997-01      1   
+2              Australia   AU       WPR      1997         2  1997-02      0   
+3              Australia   AU       WPR      1997         3  1997-03      0   
+4              Australia   AU       WPR      1997         4  1997-04      0   
+
+   INF_B  INF_ALL  INF_NEGATIVE  PositivityRate  SEASON  Urbanisation  
+0      0        1             0             0.0  Winter        84.767  
+1      0        1             0             0.0  Winter        84.636  
+2      0        0             0             0.0  Winter        84.636  
+3      0        0             0             0.0  Winter        84.636  
+4      0        0             0             0.0  Winter        84.636  
+
+
+============================================================
+Running XGBoost Classification Task: Predicting High/Low Positivity
+============================================================
+==================================================
+Method A: Basic XGBoost Classifier
+==================================================
+Accuracy: 0.9746
+
+Classification Report:
+              precision    recall  f1-score   support
+
+           0       0.99      0.98      0.98      2699
+           1       0.93      0.96      0.94       770
+
+    accuracy                           0.97      3469
+   macro avg       0.96      0.97      0.96      3469
+weighted avg       0.98      0.97      0.97      3469
+
+
+==================================================
+Method B: Grid Search for Hyperparameters
+==================================================
+Fitting 5 folds for each of 48 candidates, totalling 240 fits
+Best Parameters: {'colsample_bytree': 1.0, 'learning_rate': 0.1, 'max_depth': 7, 'n_estimators': 200, 'subsample': 0.8}
+Best Cross-Validation Score: 0.9725
+Test Set Accuracy: 0.9743
+
+
+============================================================
+Running XGBoost Regression Task: Predicting Positivity Rate
+============================================================
+==================================================
+XGBoost Regression Model
+==================================================
+RMSE: 0.0780
+R² Score: 0.7458
+
+Grid searching for best parameters...
+Fitting 5 folds for each of 576 candidates, totalling 2880 fits
+
+Best Parameters: {'colsample_bytree': 0.6, 'learning_rate': 0.01, 'max_depth': 3, 'n_estimators': 500, 'subsample': 0.8}
+Best Model RMSE: 0.0696
+Best Model R²: 0.7975
+
+
+============================================================
+Running Regression Model Analysis
+============================================================
+
+==================================================
+Analysis 1: Feature Importance
+==================================================
+Feature contribution ranking:
+           Feature  Importance
+7            lag_1    0.483316
+8            lag_2    0.258028
+9            lag_3    0.093873
+2         ISO_YEAR    0.057203
+0  COUNTRY_ENCODED    0.044581
+6     Urbanisation    0.029724
+5   SEASON_ENCODED    0.010030
+4         WEEK_COS    0.009975
+3         WEEK_SIN    0.009238
+1   REGION_ENCODED    0.004032
+
+
+Top 10 Predictions with the Largest Errors:
+      COUNTRY_AREA_TERRITORY  ISO_YEAR  ISO_WEEK  Actual  Predicted  Error
+10463                Myanmar      2017        44   1.000      0.014  0.986
+1985                  Bhutan      2016        26   1.000      0.014  0.986
+10420                Myanmar      2017         1   1.000      0.015  0.985
+12759       Papua New Guinea      2018        32   1.000      0.200  0.800
+10391                Myanmar      2016        24   0.833      0.074  0.759
+10515                Myanmar      2018        44   1.000      0.280  0.720
+4935                    Fiji      2015        40   0.000      0.658 -0.658
+5005                    Fiji      2017         6   0.667      0.013  0.654
+15044              Singapore      2016        22   0.625      0.019  0.606
+14429            Korea, Rep.      2018         3   0.000      0.536 -0.536

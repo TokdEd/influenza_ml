@@ -1,0 +1,81 @@
+方法A: 基本線性SVM
+==================================================
+準確率: 0.8783
+
+分類報告:
+              precision    recall  f1-score   support
+
+           0       0.92      0.92      0.92      2855
+           1       0.72      0.73      0.72       801
+
+    accuracy                           0.88      3656
+   macro avg       0.82      0.82      0.82      3656
+weighted avg       0.88      0.88      0.88      3656
+
+
+==================================================
+方法B: RBF核SVM
+==================================================
+準確率: 0.9300
+
+分類報告:
+              precision    recall  f1-score   support
+
+           0       0.95      0.96      0.96      2855
+           1       0.85      0.83      0.84       801
+
+    accuracy                           0.93      3656
+   macro avg       0.90      0.89      0.90      3656
+weighted avg       0.93      0.93      0.93      3656
+
+
+==================================================
+方法C: 網格搜尋調參
+==================================================
+Fitting 5 folds for each of 24 candidates, totalling 120 fits
+最佳參數: {'C': 10, 'gamma': 'scale', 'kernel': 'rbf'}
+最佳交叉驗證分數: 0.9447
+測試集準確率: 0.9467
+
+
+============================================================
+執行回歸任務：預測陽性率數值
+============================================================
+==================================================
+SVR回歸模型
+==================================================
+RMSE: 0.1354
+R² Score: 0.3607
+
+網格搜尋最佳參數...
+Fitting 5 folds for each of 24 candidates, totalling 120 fits
+^[ 
+
+最佳參數: {'C': 100, 'epsilon': 0.1, 'kernel': 'rbf'}
+最佳模型 RMSE: 0.1206
+最佳模型 R²: 0.4924
+Analysis 1: SVM Feature Importance
+==================================================
+Detected non-linear kernel (rbf). Using Permutation Importance.
+Feature contribution ranking:
+           Feature  Importance
+6     Urbanisation    4.277674
+1   REGION_ENCODED    2.528482
+0  COUNTRY_ENCODED    1.819568
+2         ISO_YEAR    0.861984
+3         WEEK_SIN    0.285219
+4         WEEK_COS    0.249883
+5   SEASON_ENCODED    0.228661
+
+Top 10 Predictions with the Largest Errors (SVM):
+      COUNTRY_AREA_TERRITORY  ISO_YEAR  ISO_WEEK  Actual  Predicted  Error
+13601            Philippines      2016        50     1.0      0.115  0.885
+10463                Myanmar      2017        44     1.0      0.134  0.866
+13600            Philippines      2016        49     1.0      0.141  0.859
+13666            Philippines      2018        11     1.0      0.148  0.852
+1981                  Bhutan      2016        22     1.0      0.150  0.850
+2002                  Bhutan      2016        43     1.0      0.157  0.843
+13576            Philippines      2016        25     1.0      0.164  0.836
+13679            Philippines      2018        24     1.0      0.178  0.822
+13611            Philippines      2017         8     1.0      0.183  0.817
+13628            Philippines      2017        25     1.0      0.205  0.795
